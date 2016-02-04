@@ -16,6 +16,7 @@ from django.views.generic.base import RedirectView
 from models import DeferManager
 from models import OnlyManager
 from tools import get_page
+from tools import valid_slug
 
 
 class ToDoMixin(object):
@@ -26,7 +27,7 @@ class ToDoMixin(object):
     def dispatch(self, request, *args, **kwargs):
 
         if request.method.lower() in self.http_method_names:
-            todo = kwargs.pop('todo', '').replace('-', '_')
+            todo = valid_slug(kwargs.pop('todo', '')).replace('-', '_')
 
             if todo not in ['queryset', 'page']:
 
@@ -43,7 +44,11 @@ class ToDoMixin(object):
                 elif self.handler_suffix is not None:
                     method = '%s_%s' % (method, self.handler_suffix)
 
-                handler = getattr(self, method, self.http_method_not_allowed)
+                handler = getattr(self, method, False)
+
+                if not handler:
+                    raise Http404
+
                 return handler(request, *args, **kwargs)
 
         handler = self.http_method_not_allowed
