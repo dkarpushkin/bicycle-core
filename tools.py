@@ -56,7 +56,8 @@ def get_class(variable, module_name):
             'app_label and class_name should be separated by a dot in '
             'the %s setting' % variable)
     try:
-        _temp = __import__('%s.%s' % (app_label, module_name), fromlist=[class_name])
+        _temp = __import__('%s.%s' % (app_label, module_name),
+                           fromlist=[class_name])
         return getattr(_temp, class_name)
     except ImportError:
         raise ClassNotAvailable(
@@ -72,32 +73,34 @@ def machine_word(word):
 
 
 def transliterate(string):
-    capital_letters = {u'А': u'A', u'Б': u'B', u'В': u'V', u'Г': u'G', u'Д': u'D',
-                       u'Е': u'E', u'Ё': u'E', u'З': u'Z', u'И': u'I', u'Й': u'Y',
-                       u'К': u'K', u'Л': u'L', u'М': u'M', u'Н': u'N', u'О': u'O',
-                       u'П': u'P', u'Р': u'R', u'С': u'S', u'Т': u'T', u'У': u'U',
-                       u'Ф': u'F', u'Х': u'H', u'Ъ': u'', u'Ы': u'Y', u'Ь': u'',
-                       u'Э': u'E', }
-    capital_letters_transliterated_to_multiple_letters = {u'Ж': u'Zh', u'Ц': u'Ts',
-                                                          u'Ч': u'Ch', u'Ш': u'Sh',
-                                                          u'Щ': u'Sch', u'Ю': u'Yu',
-                                                          u'Я': u'Ya', }
-    lower_case_letters = {u'а': u'a', u'б': u'b', u'в': u'v', u'г': u'g', u'д': u'd',
-                          u'е': u'e', u'ё': u'e', u'ж': u'zh', u'з': u'z', u'и': u'i',
-                          u'й': u'y', u'к': u'k', u'л': u'l', u'м': u'm', u'н': u'n',
-                          u'о': u'o', u'п': u'p', u'р': u'r', u'с': u's', u'т': u't',
-                          u'у': u'u', u'ф': u'f', u'х': u'h', u'ц': u'ts', u'ч': u'ch',
-                          u'ш': u'sh', u'щ': u'sch', u'ъ': u'', u'ы': u'y', u'ь': u'',
-                          u'э': u'e', u'ю': u'yu', u'я': u'ya', }
+    # capital letters
+    cap_lt = {u'А': u'A', u'Б': u'B', u'В': u'V', u'Г': u'G', u'Д': u'D',
+              u'Е': u'E', u'Ё': u'E', u'З': u'Z', u'И': u'I', u'Й': u'Y',
+              u'К': u'K', u'Л': u'L', u'М': u'M', u'Н': u'N', u'О': u'O',
+              u'П': u'P', u'Р': u'R', u'С': u'S', u'Т': u'T', u'У': u'U',
+              u'Ф': u'F', u'Х': u'H', u'Ъ': u'', u'Ы': u'Y', u'Ь': u'',
+              u'Э': u'E', }
 
-    for cyrillic_string, latin_string in capital_letters_transliterated_to_multiple_letters.iteritems():
-        string = re.sub(ur"%s([а-я])" % cyrillic_string, ur'%s\1' % latin_string, string)
+    # capital letters transliterated to multiple letters
+    cap_mlt = {u'Ж': u'Zh', u'Ц': u'Ts', u'Ч': u'Ch', u'Ш': u'Sh', u'Щ': u'Sch',
+               u'Ю': u'Yu', u'Я': u'Ya', }
 
-    for dictionary in (capital_letters, lower_case_letters):
+    # lower case letters
+    low_lt = {u'а': u'a', u'б': u'b', u'в': u'v', u'г': u'g', u'д': u'd',
+              u'е': u'e', u'ё': u'e', u'ж': u'zh', u'з': u'z', u'и': u'i',
+              u'й': u'y', u'к': u'k', u'л': u'l', u'м': u'm', u'н': u'n',
+              u'о': u'o', u'п': u'p', u'р': u'r', u'с': u's', u'т': u't',
+              u'у': u'u', u'ф': u'f', u'х': u'h', u'ц': u'ts', u'ч': u'ch',
+              u'ш': u'sh', u'щ': u'sch', u'ъ': u'', u'ы': u'y', u'ь': u'',
+              u'э': u'e', u'ю': u'yu', u'я': u'ya', }
+
+    for cyrillic_string, latin_string in cap_mlt.iteritems():
+        string = re.sub(ur"%s([а-я])" % cyrillic_string,
+                        ur'%s\1' % latin_string, string)
+    for dictionary in (cap_lt, low_lt):
         for cyrillic_string, latin_string in dictionary.iteritems():
             string = string.replace(cyrillic_string, latin_string)
-
-    for cyrillic_string, latin_string in capital_letters_transliterated_to_multiple_letters.iteritems():
+    for cyrillic_string, latin_string in cap_mlt.iteritems():
         string = string.replace(cyrillic_string, latin_string.upper())
 
     return string
@@ -112,7 +115,6 @@ def valid_file_name(word):
     patrn = r'[^a-zA-Z0-9_.()-]'
     repl = '-'
     fingerprint = md5_random_string()  # 32
-
     return u'%s-%s' % (fingerprint, re.sub(patrn, repl, word)[-20:])
 
 
@@ -128,23 +130,18 @@ class UploadToDir(object):
 
     def __call__(self, instance, filename):
         root_dir = instance.__class__.__name__.lower()
-
         if self.suffix is not None:
             root_dir += '_' + self.suffix
-
         file_name = valid_file_name(filename)
-
         return os.path.join(root_dir, file_name[0:2], file_name[2:4], file_name)
 
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]
     else:
         ip = request.META.get('REMOTE_ADDR')
-
     return ip
 
 
@@ -158,24 +155,20 @@ def random_datetime(start, end=None):
     :param end: end date, defaults to None
     :type end: string with valide format, for example ISO 8601
 
-    - Gets 2 dates and returns a random datetime object with time zone based on settings.py
+    - Gets 2 dates and returns a random datetime object with time zone based
+      on settings.py
     - If end is None then now is used
     - Required: pytz, dateutil
     """
-
     tz = pytz.timezone(settings.TIME_ZONE)
     sdt = dateutil.parser.parse(start)
-
     if end is None:
         edt = datetime.datetime.now(tz)
     else:
         edt = dateutil.parser.parse(end)
-
     delta = edt - sdt
     random_seconds = int(round(delta.total_seconds() * random.random()))
-
     random_date = sdt + datetime.timedelta(0, random_seconds)
-
     try:
         return tz.localize(random_date)
     except ValueError:
@@ -190,9 +183,7 @@ def download_file(url, save_to=''):
     r = requests.get(url, stream=True)
 
     with open(local_filename, 'wb') as f:
-
         for chunk in r.iter_content(chunk_size=1024):
-
             # filter out keep-alive new chunks
             if chunk:
                 f.write(chunk)
@@ -202,7 +193,6 @@ def download_file(url, save_to=''):
 
 def get_page(query_set, request, limit=12):
     pager = Paginator(query_set, limit)
-
     try:
         page = pager.page(request.GET.get('page', 1))
     except PageNotAnInteger:
@@ -214,7 +204,6 @@ def get_page(query_set, request, limit=12):
 
 def _send_email_job(subject, from_email, to, tpl, context):
     import json
-
     from django.template import loader
     from django.template import Context
     from django.core.mail import EmailMultiAlternatives
@@ -242,13 +231,12 @@ def send_email_rq(subject, from_email, to, tpl='email.html', context={}):
             tpl - template path
             context - context dict
     """
-
     import json
-
     import django_rq
 
-    func = 'bicycle.core.shortcuts._send_email_job'
-    django_rq.enqueue(func, subject, from_email, json.dumps(to), tpl, json.dumps(context))
+    func = 'bicycle.core.tools._send_email_job'
+    django_rq.enqueue(func, subject, from_email, json.dumps(to), tpl,
+                      json.dumps(context))
 
 
 def session_start(request):
@@ -259,9 +247,9 @@ def session_start(request):
 
 
 def tz_now(format=None):
-
     if format is not None:
-        return datetime.datetime.now(pytz.timezone(settings.TIME_ZONE)).strftime(format)
+        return datetime.datetime.now(pytz.timezone(
+            settings.TIME_ZONE)).strftime(format)
     else:
         return datetime.datetime.now(pytz.timezone(settings.TIME_ZONE))
 
@@ -273,5 +261,6 @@ def tz_iso_now():
 def localize_date(d):
     try:
         return pytz.timezone(settings.TIME_ZONE).localize(d)
-    except ValueError:  # already localized
+    except ValueError:
+        # means that it already localized
         return d
