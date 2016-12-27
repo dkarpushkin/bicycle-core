@@ -396,12 +396,11 @@ class ImageBase(EditLinkMixin, ImgSeoModel, PositionModel):
         return image_html(self, self.image)
 
     def image_py(self):
-
         if len(self.image):
-            code = u'<img class="img-responsive" alt="%s" title="%s" \
-                     src="{{ MEDIA_URL }}%s"/>' % \
-                   (self.image_alt, self.image_title, self.image.name)
-
+            code = u'<img class="img-responsive" alt="%s" title="%s"'\
+                u'src="{{ MEDIA_URL }}%s"/>' % (self.image_alt,
+                                                self.image_title,
+                                                self.image.name)
             return escape(code)
         else:
             return _(u'No image')
@@ -445,34 +444,41 @@ class CoupleBase(TitleModel):
 
 
 class ParseMediaMixin(DynamicMethodsMixin):
+    """The mixin provides ability to inject an images and other snippets,
+    such as video to a text.
 
-    """The mixin provide ability to inject an images and other snippets, such as video to a text.
-
-    Invocing in template:
+    Template usage:
     ::
         {{ object.parse__description }}
-
-    where description - model field.
+        where description - a model field.
 
     Tags specification:
     ::
         [[ mainapp.Image:kitty ]]
-    where mainapp - the app label, Image - the class of model with name Image and
-    kitty - the slug of an object.
+        where mainapp - the app label, Image - the class of model with name
+        Image and kitty - the slug of an object.
 
     .. note::
-        An Image object must have to_html method which returns text/html.
+        An Image object must has to_html method which returns text/html.
 
     ::
         [[ mainapp.Image:kitty:src ]]
-    this one returns only path to a file and invoce to_src insted of to_html.
+        this one returns only path to a file and invoce to_src insted of to_html.
 
     .. note::
-        An Image object must have to_src method which returns text/html.
+        An Image object must has to_src method which returns text/html.
+
+    ::
+        [[ mainapp.Image:kitty:responsive ]]
+        returns responsive image html tag.
 
     .. note::
-        - Parse method return empty string if an attribute does not exists.
-        - If an object does not exists or does not have slug attribute or does
+        An Image object must has to_responsive_html method which returns
+        text/html.
+
+    .. note::
+        - Parse method return empty string if an attribute does not exist.
+        - If an object does not exist or does not have slug attribute or does
         not have to_html attribute, then the parser leave tag without replace.
         - It also uses django cache system, so you have to delete cache every
         time after save an Image object. There is the handler for that.
@@ -482,7 +488,6 @@ class ParseMediaMixin(DynamicMethodsMixin):
     LOCAL_CACHE_TIMEOUT = settings.CACHE_TIMEOUT
 
     def parse(self, field):
-
         try:
             text = getattr(self, field)
         except AttributeError:
@@ -491,8 +496,9 @@ class ParseMediaMixin(DynamicMethodsMixin):
         cmld_to_html = re.compile(
             r'(?P<tag>\[\['
             r'\s*(?P<content>(?P<model>\w+?\.\w+?)\:(?P<slug>[0-9a-zA-Z-_]+?)'
-            r'(?P<src>:src)?)'
-            r'\s*\]\])')
+            r'(?P<src>:src)?'
+            r'(?P<responsive>:responsive)?'
+            r')\s*\]\])')
 
         for m in cmld_to_html.finditer(text):
             d = m.groupdict()
@@ -501,31 +507,25 @@ class ParseMediaMixin(DynamicMethodsMixin):
 
             if c is not None:
                 replacement = c
-
             else:
-
                 try:
                     model = apps.get_model(d['model'])
                     obj = model.objects.get(slug=d['slug'])
-
-                    if d['src'] is None:
-                        replacement = obj.to_html()
-
-                    else:
+                    if d['src'] is not None:
                         replacement = obj.to_src()
-
+                    elif d['responsive'] is not None:
+                        replacement = obj.to_responsive_html()
+                    else:
+                        replacement = obj.to_html()
                 except (LookupError, AttributeError, FieldError, ObjectDoesNotExist):
                     continue
-
                 cache.set(key, replacement, self.LOCAL_CACHE_TIMEOUT)
-
             text = text.replace(d['tag'], replacement)
 
         return text
 
 
 class ParseMediaCacheMixin(object):
-
     """
     Usage:
     ::
@@ -546,7 +546,6 @@ class ParseMediaCacheMixin(object):
     @classmethod
     def clear_cached_tag(cls, sender, **kwargs):
         obj = kwargs['instance']
-
         if obj.pk:
             old_obj = cls.objects.get(pk=obj.pk)
             key = cls.LOCAL_CACHE_KEY_PREFIX + cls.media_tag(old_obj)[3:-3]
@@ -554,32 +553,47 @@ class ParseMediaCacheMixin(object):
 
 
 class ImageMedia(ParseMediaCacheMixin, ImageBase):
-
-    """
-    Read ParseMediaCacheMixin and ParseMediaMixin usage
-    """
+    """Read ParseMediaCacheMixin and ParseMediaMixin usage"""
 
     slug = models.SlugField(max_length=256, unique=True,
                             verbose_name=_(u'Short slug for URL'))
 
     def media_tag(self):
-        return u'[[ %s.%s:%s ]]' % (self.app_label(), self.class_name(), self.slug)
+        ptn = u'[[ %s.%s:%s ]]'
+        return ptn % (self.app_label(), self.class_name(), self.slug)
+
+    media_tag.short_description = _(u'Image')
+    media_tag.allow_tags = True
+
+    def media_tag_responsive(self):
+        ptn = u'[[ %s.%s:%s:responsive ]]'
+        return ptn % (self.app_label(), self.class_name(), self.slug)
+
+    media_tag_responsive.short_description = _(u'Responsive Image')
+    media_tag_responsive.allow_tags = True
 
     def media_tag_src(self):
-        return u'[[ %s.%s:%s:src ]]' % (self.app_label(), self.class_name(), self.slug)
+        ptn = u'[[ %s.%s:%s:src ]]'
+        return ptn % (self.app_label(), self.class_name(), self.slug)
+
+    media_tag_src.short_description = _(u'Image URL')
+    media_tag_src.allow_tags = True
 
     def to_html(self):
-
         if len(self.image):
-            code = u'<img class="img-responsive" alt="%s" title="%s" src="%s"/>' % \
-                   (self.image_alt, self.image_title, self.image.url)
+            ptn = u'<img alt="%s" title="%s" src="%s"/>'
+            return ptn % (self.image_alt, self.image_title, self.image.url)
+        else:
+            return ''
 
-            return code
+    def to_responsive_html(self):
+        if len(self.image):
+            ptn = u'<img class="img-responsive" alt="%s" title="%s" src="%s"/>'
+            return ptn % (self.image_alt, self.image_title, self.image.url)
         else:
             return ''
 
     def to_src(self):
-
         if len(self.image):
             return self.image.url
         else:
