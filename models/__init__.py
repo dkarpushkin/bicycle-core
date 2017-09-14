@@ -155,7 +155,7 @@ class SlugModel(GetUrlMixin, EditLinkMixin, UnicodeSlugMixin, TitleModel):
 
     def save(self, *args, **kwargs):
         self.slug = valid_slug(self.slug)
-        super(SlugModel, self).save()
+        super(SlugModel, self).save(*args, **kwargs)
 
     class Meta:
         abstract = True
@@ -167,7 +167,7 @@ class OnlySlugModel(GetUrlMixin, EditLinkMixin, UnicodeSlugMixin, models.Model):
 
     def save(self, *args, **kwargs):
         self.slug = valid_slug(self.slug)
-        super(OnlySlugModel, self).save()
+        super(OnlySlugModel, self).save(*args, **kwargs)
 
     class Meta:
         abstract = True
@@ -184,7 +184,7 @@ class SlugBlankModel(GetUrlMixin, EditLinkMixin, UnicodeSlugMixin, TitleModel):
         else:
             self.slug = valid_slug(self.slug)
 
-        super(SlugBlankModel, self).save()
+        super(SlugBlankModel, self).save(*args, **kwargs)
 
     class Meta:
         abstract = True
@@ -338,7 +338,7 @@ class ChronologyModel(models.Model):
 
         self.updated = datetime.now(pytz.timezone(settings.TIME_ZONE))
 
-        super(ChronologyModel, self).save()
+        super(ChronologyModel, self).save(*args, **kwargs)
 
     def full_clean(self, exclude=None, validate_unique=True):
 
